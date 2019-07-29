@@ -1,6 +1,6 @@
 import * as Router from 'koa-router'
-import { loginCtrl, clientCtrl } from './controllers'
-import { needAuth } from './utils'
+import { loginCtrl, clientCtrl } from '../controllers'
+import { needAuth } from '../utils'
 
 const router = new Router()
 

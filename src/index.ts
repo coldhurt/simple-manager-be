@@ -6,25 +6,25 @@ import * as BodyParser from 'koa-bodyparser'
 import * as Mongoose from 'mongoose'
 import * as path from 'path'
 import * as Session from 'koa-session'
+import chalk from 'chalk'
 
 import { config } from './config'
-// import { logger } from './logging'
 import { routes } from './routes'
-import { contextUtil } from './utils'
+import { contextUtil, log } from './utils'
 
 const app = new Koa()
 
 app.keys = config.sessionKeys
 
-Mongoose.connect('mongodb://localhost:27017/myproject', {
+Mongoose.connect(config.mongodbUrl, {
   useNewUrlParser: true
 })
 
-const db: Mongoose.Connection = Mongoose.connection
+const db = Mongoose.connection
 db.on('error', console.error.bind(console, 'connection error:'))
 db.once('open', function() {
   // we're connected!
-  console.log('mongoose connected')
+  log(chalk.green('mongoose connected'))
 })
 
 contextUtil(app.context)
@@ -64,14 +64,12 @@ app
   })
   .use(Static(path.join(__dirname, '../build')))
 
-console.log('log status: ', config.prettyLog)
+log(chalk.green(`log status: ${config.prettyLog}`))
 if (config.prettyLog) {
   app.use(Logger())
 }
 app.use(routes)
-// # customize logger
-// app.use(logger)
 
 app.listen(config.port)
 
-console.log(`Server running on port ${config.port}`)
+log(chalk.green(`Server running on port ${config.port}`))

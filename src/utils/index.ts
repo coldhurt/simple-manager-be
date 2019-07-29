@@ -78,6 +78,8 @@ function encryptPassword(pwd: string) {
   return hash.update(pwd).digest('hex')
 }
 
+const log = console.log
+
 export {
   needAuth,
   contextUtil,
@@ -85,5 +87,6 @@ export {
   checkLogin,
   checkUsername,
   checkPassword,
-  encryptPassword
+  encryptPassword,
+  log
 }
