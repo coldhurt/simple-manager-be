@@ -69,10 +69,21 @@ async function changePwd(ctx: MYRouter) {
   }
 }
 
+async function getUserInfo(ctx: MYRouter) {
+  if (ctx.session.id) {
+    ctx.success({
+      id: ctx.session.id
+    })
+  } else {
+    ctx.failed('getUserInfo failed')
+  }
+}
+
 const loginCtrl = {
   login,
   register,
   logout,
-  changePwd
+  changePwd,
+  getUserInfo
 }
 export default loginCtrl

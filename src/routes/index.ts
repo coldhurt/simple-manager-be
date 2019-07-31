@@ -15,5 +15,6 @@ router.post('/login', loginCtrl.login)
 router.post('/logout', loginCtrl.logout)
 router.post('/register', loginCtrl.register)
 router.post('/changePwd', needAuth(loginCtrl.changePwd))
+router.post('/getUserInfo', needAuth(loginCtrl.getUserInfo))
 
 export const routes = router.routes()

@@ -7,7 +7,7 @@ export interface MYRouter extends Router.RouterContext {
   redirectToLogin(): void
   checkLogin(redirectTo: boolean): boolean
   success(obj: Object | String): void
-  falied(obj: Object | String): void
+  failed(obj: Object | String): void
 }
 
 function success(obj: Object | String) {
@@ -54,7 +54,8 @@ function checkLogin(redirectTo: boolean) {
 // All interfaces that need to be logged in should be wrapped by this function
 function needAuth(ctrl: Function) {
   return async function(ctx: MYRouter) {
-    if (ctx.checkLogin(true)) await ctrl(ctx)
+    if (ctx.checkLogin(false)) await ctrl(ctx)
+    else ctx.failed('need login')
   }
 }
 
