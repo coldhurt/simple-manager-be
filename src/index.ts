@@ -57,7 +57,7 @@ app
   )
   .use(async (ctx, next) => {
     // redirect all gets to front end
-    if (ctx.request.method === 'GET') {
+    if (ctx.request.method === 'GET' && ctx.request.path.indexOf('.') === -1) {
       ctx.request.path = '/'
     }
     await next()
