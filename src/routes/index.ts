@@ -5,6 +5,7 @@ import { needAuth } from '../utils'
 const router = new Router()
 
 // client
+router.post('/getClientDetail', needAuth(clientCtrl.findClient))
 router.post('/getClientList', needAuth(clientCtrl.findAll))
 router.post('/updateClient', needAuth(clientCtrl.update))
 router.post('/deleteClient', needAuth(clientCtrl.destroy))

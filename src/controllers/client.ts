@@ -1,9 +1,41 @@
 import Client, { IClient } from '../models/client'
 import { MYRouter } from '../utils'
 
+interface IAppendData {
+  prevId?: string
+  nextId?: string
+}
+
+async function findClient(ctx: MYRouter) {
+  const body = ctx.request.body
+  console.log('findById: ' + body.id)
+  const client: IClient = await Client.findById(body.id)
+  const nextClient = await Client.findOne({ _id: { $gt: body.id } })
+    .sort({ _id: 1 })
+    .limit(1)
+  const prevClient = await Client.findOne({ _id: { $lt: body.id } })
+    .sort({ _id: -1 })
+    .limit(1)
+  const appendData: IAppendData = {}
+  if (prevClient) {
+    appendData.prevId = prevClient._id
+  }
+  if (nextClient) {
+    appendData.nextId = nextClient._id
+  }
+  ctx.success({ data: { ...client._doc, ...appendData } })
+}
+
 async function findAll(ctx: MYRouter) {
   // Fetch all Client’s from the database and return as payload
-  const clients = await Client.find({})
+  const clients = await Client.find({}, [
+    '_id',
+    'clientName',
+    'tel',
+    'payStatus',
+    'created_date',
+    'updated_date'
+  ])
   ctx.success({ data: clients })
 }
 
@@ -48,6 +80,7 @@ async function update(ctx: MYRouter) {
 }
 
 const clientCtrl = {
+  findClient,
   findAll,
   create,
   destroy,
