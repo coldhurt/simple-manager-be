@@ -19,17 +19,20 @@ export interface IClient extends mongoose.Document {
   prevId?: string
   _doc?: Object
 }
-const dateThailand = moment.tz('Asia/Shanghai')
+// const dateThailand = moment.tz('Asia/Shanghai')
 // Declare Schema
-const schema = new mongoose.Schema({
-  // _id: { type: mongoose.Types.ObjectId },
-  clientName: { type: String, required: true, trim: true },
-  tel: { type: String, required: true, trim: true },
-  payStatus: { type: Boolean, required: true, default: false },
-  products: { type: Array, default: [] },
-  created_date: { type: Date, default: dateThailand },
-  updated_date: { type: Date, default: dateThailand }
-})
+const schema = new mongoose.Schema(
+  {
+    // _id: { type: mongoose.Types.ObjectId },
+    clientName: { type: String, required: true, trim: true },
+    tel: { type: String, required: true, trim: true },
+    payStatus: { type: Boolean, required: true, default: false },
+    products: { type: Array, default: [] }
+  },
+  {
+    timestamps: true
+  }
+)
 
 // Declare Model to mongoose with Schema
 mongoose.model<IClient>('client', schema)

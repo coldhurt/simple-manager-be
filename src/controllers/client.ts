@@ -33,8 +33,7 @@ async function findAll(ctx: MYRouter) {
     'clientName',
     'tel',
     'payStatus',
-    'created_date',
-    'updated_date'
+    'createdAt'
   ])
   ctx.success({ data: clients })
 }
