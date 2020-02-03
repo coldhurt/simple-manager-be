@@ -10,7 +10,7 @@ import chalk from 'chalk'
 
 import { config } from './config'
 import { routes } from './routes'
-import { contextUtil, log } from './utils'
+import { contextUtil, log, MYRouter } from './utils'
 
 const app = new Koa()
 
@@ -27,7 +27,7 @@ db.once('open', function() {
   log(chalk.green('mongoose connected'))
 })
 
-contextUtil(app.context)
+contextUtil(app.context as MYRouter)
 
 const sessionConfig = {
   key: 'koa:sess' /** (string) cookie key (default is koa:sess) */,

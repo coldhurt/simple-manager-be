@@ -2,12 +2,14 @@ import { BaseContext } from 'koa'
 import * as crypto from 'crypto'
 import { config } from '../config'
 import * as Router from 'koa-router'
+import * as Session from 'koa-session'
 
 export interface MYRouter extends Router.RouterContext {
   redirectToLogin(): void
   checkLogin(redirectTo: boolean): boolean
   success(obj: Object | String): void
   failed(obj: Object | String): void
+  session: Session.Session | null
 }
 
 function success(obj: Object | String) {
@@ -59,7 +61,7 @@ function needAuth(ctrl: Function) {
   }
 }
 
-function contextUtil(ctx: BaseContext) {
+function contextUtil(ctx: MYRouter) {
   ctx.success = success
   ctx.failed = failed
   ctx.redirectToLogin = redirectToLogin
