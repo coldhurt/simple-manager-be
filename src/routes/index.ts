@@ -1,21 +1,47 @@
 import * as Router from 'koa-router'
-import { loginCtrl, clientCtrl } from '../controllers'
 import { needAuth } from '../utils'
+import * as fs from 'fs'
+import * as path from 'path'
 
 const router = new Router()
 
-// client
-router.post('/getClientDetail', needAuth(clientCtrl.findClient))
-router.post('/getClientList', needAuth(clientCtrl.findAll))
-router.post('/updateClient', needAuth(clientCtrl.update))
-router.post('/deleteClient', needAuth(clientCtrl.destroy))
-router.post('/addClient', needAuth(clientCtrl.create))
+const BASE_API_DIR = path.resolve(__dirname, '../api')
 
-// auth
-router.post('/login', loginCtrl.login)
-router.post('/logout', loginCtrl.logout)
-router.post('/register', loginCtrl.register)
-router.post('/changePwd', needAuth(loginCtrl.changePwd))
-router.post('/getUserInfo', needAuth(loginCtrl.getUserInfo))
+const files = fs.readdirSync(BASE_API_DIR)
+
+const methods = ['post', 'get']
+
+function dealWithDir(files: string[], parentPath = BASE_API_DIR) {
+  let paths: object[] = []
+  for (const file of files) {
+    const abs = path.resolve(parentPath, file)
+    const stats = fs.lstatSync(abs)
+    if (stats.isDirectory()) {
+      const subFiles = fs.readdirSync(abs)
+      paths = paths.concat(dealWithDir(subFiles, abs))
+    } else {
+      const obj = require(abs)
+      let routePath = abs.replace(/\\/g, '/').replace('.ts', '')
+      routePath = routePath.substr(routePath.indexOf('/api'))
+      obj.path = routePath
+      for (const method of methods) {
+        if (obj[method]) {
+          if (obj.needAuth) {
+            ;(router as { [key: string]: any })[method](
+              routePath,
+              needAuth(obj[method])
+            )
+          } else {
+            ;(router as { [key: string]: any })[method](routePath, obj[method])
+          }
+        }
+      }
+      paths.push(obj)
+    }
+  }
+  return paths
+}
+
+console.log('routes list\n', dealWithDir(files))
 
 export const routes = router.routes()

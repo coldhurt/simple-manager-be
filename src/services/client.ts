@@ -78,7 +78,7 @@ async function update(ctx: MYRouter) {
   ctx.success({ data: updatedClient })
 }
 
-const clientCtrl = {
+const clientService = {
   findClient,
   findAll,
   create,
@@ -86,4 +86,4 @@ const clientCtrl = {
   update
 }
 
-export default clientCtrl
+export default clientService

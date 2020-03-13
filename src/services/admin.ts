@@ -5,6 +5,8 @@ import {
   encryptPassword,
   MYRouter
 } from '../utils'
+import * as passport from 'koa-passport'
+import { Next } from 'koa'
 
 interface IPwdData {
   oldPwd: string
@@ -30,23 +32,29 @@ async function register(ctx: MYRouter) {
   }
 }
 
-async function login(ctx: MYRouter) {
-  const body: IAdmin = ctx.request.body
-  if (checkUsername(body.username) && checkPassword(body.password)) {
-    const data = await Admin.findOne({ username: body.username })
-    if (data && data.password === encryptPassword(body.password)) {
-      ctx.session.id = data._id
-      ctx.success('login successfully')
-    } else {
+// const login = passport.authenticate('local', {
+//   successFlash: 'Welcome!',
+//   failureFlash: 'Invalid username or password.'
+// })
+const login = async function(ctx: MYRouter, next: Next) {
+  return passport.authenticate('local', async function(
+    err,
+    user,
+    info,
+    status
+  ) {
+    if (user === false) {
       ctx.failed('username or password is not correct')
+    } else {
+      ctx.session.user = user
+      ctx.success('login successfully')
     }
-  } else {
-    ctx.failed('username or password is invalid')
-  }
+  })(ctx, next)
 }
 
 async function logout(ctx: MYRouter) {
-  ctx.session.id = null
+  ctx.session.user = null
+  ctx.logout()
   ctx.redirectToLogin()
 }
 
@@ -70,20 +78,45 @@ async function changePwd(ctx: MYRouter) {
 }
 
 async function getUserInfo(ctx: MYRouter) {
-  if (ctx.session.id) {
-    ctx.success({
-      id: ctx.session.id
-    })
+  if (ctx.session.user) {
+    ctx.success(ctx.session.user)
   } else {
     ctx.failed('getUserInfo failed')
   }
 }
 
-const loginCtrl = {
+async function getUserList(ctx: MYRouter) {
+  const users = await Admin.find({}, ['_id', 'username', 'createdAt'])
+  ctx.success({ data: users })
+}
+
+async function destroy(ctx: MYRouter) {
+  const count = await Admin.count({})
+  if (count > 1) {
+    const id = ctx.request.body.id
+    const admin = await Admin.findById(id)
+
+    // Delete client from database and return deleted object as reference
+    if (admin) {
+      const deleteAdmin = await admin.remove()
+      ctx.success({ data: deleteAdmin })
+    } else {
+      ctx.failed({
+        msg: 'Admin not found'
+      })
+    }
+  } else {
+    ctx.failed('You cant delete the only one account')
+  }
+}
+
+const adminService = {
   login,
   register,
   logout,
   changePwd,
-  getUserInfo
+  getUserInfo,
+  getUserList,
+  destroy
 }
-export default loginCtrl
+export default adminService

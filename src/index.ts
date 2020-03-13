@@ -6,25 +6,26 @@ import * as BodyParser from 'koa-bodyparser'
 import * as Mongoose from 'mongoose'
 import * as path from 'path'
 import * as Session from 'koa-session'
-import chalk from 'chalk'
-
+import * as passport from 'koa-passport'
+import * as io from 'socket.io'
 import { config } from './config'
 import { routes } from './routes'
-import { contextUtil, log, MYRouter } from './utils'
+import { contextUtil, log, MYRouter, MYState } from './utils'
 
-const app = new Koa()
+const app = new Koa<MYState, MYRouter>()
 
 app.keys = config.sessionKeys
 
 Mongoose.connect(config.mongodbUrl, {
-  useNewUrlParser: true
+  useNewUrlParser: true,
+  useUnifiedTopology: true
 })
 
 const db = Mongoose.connection
 db.on('error', console.error.bind(console, 'connection error:'))
 db.once('open', function() {
   // we're connected!
-  log(chalk.green('mongoose connected'))
+  log.info('mongoose connected')
 })
 
 contextUtil(app.context as MYRouter)
@@ -42,6 +43,7 @@ const sessionConfig = {
   rolling: false /** (boolean) Force a session identifier cookie to be set on every response. The expiration is reset to the original maxAge, resetting the expiration countdown. (default is false) */,
   renew: false /** (boolean) renew session when session is nearly expired, so we can always keep user logged in. (default is false)*/
 }
+import './utils/auth'
 app
   .use(Helmet())
   .use(Session(sessionConfig, app))
@@ -55,6 +57,8 @@ app
       }
     })
   )
+  .use(passport.initialize())
+  .use(passport.session())
   .use(async (ctx, next) => {
     // redirect all gets to front end
     if (ctx.request.method === 'GET' && ctx.request.path.indexOf('.') === -1) {
@@ -64,12 +68,11 @@ app
   })
   .use(Static(path.join(__dirname, '../build')))
 
-log(chalk.green(`log status: ${config.prettyLog}`))
+log.info(`log status: ${config.prettyLog}`)
 if (config.prettyLog) {
   app.use(Logger())
 }
 app.use(routes)
-
 app.listen(config.port)
 
-log(chalk.green(`Server running on port ${config.port}`))
+log.info(`Server running on port ${config.port}`)

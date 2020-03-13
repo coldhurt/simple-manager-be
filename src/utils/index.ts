@@ -1,16 +1,29 @@
-import { BaseContext } from 'koa'
 import * as crypto from 'crypto'
 import { config } from '../config'
-import * as Router from 'koa-router'
 import * as Session from 'koa-session'
+import chalk from 'chalk'
+import * as passport from 'koa-passport'
+import { Next, ParameterizedContext } from 'koa'
+import { IAdmin } from '../models/admin'
 
-export interface MYRouter extends Router.RouterContext {
-  redirectToLogin(): void
-  checkLogin(redirectTo: boolean): boolean
-  success(obj: Object | String): void
-  failed(obj: Object | String): void
-  session: Session.Session | null
-}
+export interface MYState {}
+export type MYRouter = ParameterizedContext<
+  {
+    user: IAdmin
+  },
+  {
+    redirectToLogin(): void
+    checkLogin(redirectTo: boolean): boolean
+    success(obj: Object | String): void
+    failed(obj: Object | String): void
+    session: Session.Session | null
+    login: Function
+    logout(): void
+    req: Request & {
+      user: IAdmin
+    }
+  }
+>
 
 function success(obj: Object | String) {
   if (typeof obj === 'string')
@@ -55,9 +68,12 @@ function checkLogin(redirectTo: boolean) {
 
 // All interfaces that need to be logged in should be wrapped by this function
 function needAuth(ctrl: Function) {
-  return async function(ctx: MYRouter) {
-    if (ctx.checkLogin(false)) await ctrl(ctx)
-    else ctx.failed('need login')
+  return async function(ctx: MYRouter, next: Next) {
+    if (ctx.session.user) {
+      await ctrl(ctx)
+    } else {
+      ctx.failed('need login')
+    }
   }
 }
 
@@ -81,7 +97,11 @@ function encryptPassword(pwd: string) {
   return hash.update(pwd).digest('hex')
 }
 
-const log = console.log
+const log = {
+  info: function(msg: string) {
+    console.log.call(this, chalk.green(Array.prototype.join.call(this, msg)))
+  }
+}
 
 export {
   needAuth,
