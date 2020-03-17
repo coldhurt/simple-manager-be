@@ -22,6 +22,7 @@ async function register(ctx: MYRouter) {
     } else {
       const newAdmin = new Admin({
         username: body.username,
+        nickname: body.nickname || body.username,
         password: encryptPassword(body.password)
       })
       const res = await newAdmin.save()
@@ -55,6 +56,7 @@ const login = async function(ctx: MYRouter, next: Next) {
 async function logout(ctx: MYRouter) {
   ctx.session.user = null
   ctx.logout()
+  console.log(ctx.logout)
   ctx.redirectToLogin()
 }
 
@@ -79,7 +81,7 @@ async function changePwd(ctx: MYRouter) {
 
 async function getUserInfo(ctx: MYRouter) {
   if (ctx.session.user) {
-    ctx.success(ctx.session.user)
+    ctx.success({ data: ctx.session.user })
   } else {
     ctx.failed('getUserInfo failed')
   }

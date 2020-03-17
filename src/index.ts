@@ -7,11 +7,16 @@ import * as Mongoose from 'mongoose'
 import * as path from 'path'
 import * as Session from 'koa-session'
 import * as passport from 'koa-passport'
-import * as io from 'socket.io'
+import * as RedisStore from 'koa-redis'
+import * as redis from 'redis'
 import { config } from './config'
 import { routes } from './routes'
 import { contextUtil, log, MYRouter, MYState } from './utils'
+import { installSession } from './middleware/session'
+import { installPassport } from './middleware/auth'
+import { initIM } from './im'
 
+export type TKoa = Koa<MYState, MYRouter>
 const app = new Koa<MYState, MYRouter>()
 
 app.keys = config.sessionKeys
@@ -29,36 +34,19 @@ db.once('open', function() {
 })
 
 contextUtil(app.context as MYRouter)
-
-const sessionConfig = {
-  key: 'koa:sess' /** (string) cookie key (default is koa:sess) */,
-  /** (number || 'session') maxAge in ms (default is 1 days) */
-  /** 'session' will result in a cookie that expires when session/browser is closed */
-  /** Warning: If a session cookie is stolen, this cookie will never expire */
-  maxAge: 86400000,
-  autoCommit: true /** (boolean) automatically commit headers (default true) */,
-  overwrite: true /** (boolean) can overwrite or not (default true) */,
-  httpOnly: true /** (boolean) httpOnly or not (default true) */,
-  signed: true /** (boolean) signed or not (default true) */,
-  rolling: false /** (boolean) Force a session identifier cookie to be set on every response. The expiration is reset to the original maxAge, resetting the expiration countdown. (default is false) */,
-  renew: false /** (boolean) renew session when session is nearly expired, so we can always keep user logged in. (default is false)*/
-}
-import './utils/auth'
+installSession(app)
+app.use(Helmet()).use(
+  BodyParser({
+    enableTypes: ['json'],
+    jsonLimit: '5mb',
+    strict: true,
+    onerror: function(err, ctx) {
+      ctx.throw('body parse error', 422)
+    }
+  })
+)
+installPassport(app)
 app
-  .use(Helmet())
-  .use(Session(sessionConfig, app))
-  .use(
-    BodyParser({
-      enableTypes: ['json'],
-      jsonLimit: '5mb',
-      strict: true,
-      onerror: function(err, ctx) {
-        ctx.throw('body parse error', 422)
-      }
-    })
-  )
-  .use(passport.initialize())
-  .use(passport.session())
   .use(async (ctx, next) => {
     // redirect all gets to front end
     if (ctx.request.method === 'GET' && ctx.request.path.indexOf('.') === -1) {
@@ -73,6 +61,7 @@ if (config.prettyLog) {
   app.use(Logger())
 }
 app.use(routes)
-app.listen(config.port)
+const server = initIM(app)
+server.listen(config.port)
 
 log.info(`Server running on port ${config.port}`)

@@ -1,0 +1,70 @@
+import * as socketio from 'socket.io'
+import { TKoa } from '..'
+import message, { IMessage } from '../models/message'
+import { IAdmin } from '../models/admin'
+
+type TSocket = {
+  id: string
+  user_id: string
+}
+
+function initIM(app: TKoa) {
+  const server = require('http').Server(app.callback())
+  const io = socketio(server)
+  const users: TSocket[] = []
+  io.on('connection', async socket => {
+    const cookie = socket.request.headers.cookie
+    const sessKey = app.context.getCookie(cookie, 'koa:sess')
+    if (!sessKey) {
+      socket.disconnect()
+      return
+    }
+    console.log('sesskey ', sessKey)
+    const data = await app.context.store.get(sessKey, 86400000, {
+      rolling: false
+    })
+    if (!data.user) {
+      socket.error('need login')
+      socket.disconnect()
+      return
+    }
+    users.push({
+      id: socket.id,
+      user_id: data.user._id
+    })
+    const user = data.user as IAdmin
+    console.log('socketio connected 用户信息', user)
+    socket.on('send', async (data: IMessage) => {
+      if (data && data.receiver && data.message) {
+        const options = {
+          sender: user && user._id,
+          message: data.message,
+          receiver: data.receiver,
+          type: data.type
+        }
+        console.log('接受消息', options)
+        const model = new message(options)
+        await model.save()
+        for (let i = 0; i < users.length; i++) {
+          if (data.receiver === users[i].user_id) {
+            socket.broadcast.to(users[i].id).emit('receive', model)
+            break
+          }
+        }
+        socket.emit('receive', model)
+      }
+    })
+
+    socket.on('disconnect', () => {
+      for (let i = 0; i < users.length; i++) {
+        if (socket.id === users[i].id) {
+          users.splice(i, 1)
+          break
+        }
+      }
+    })
+  })
+  return server
+}
+
+export { initIM }

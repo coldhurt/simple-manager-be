@@ -2,9 +2,9 @@ import * as crypto from 'crypto'
 import { config } from '../config'
 import * as Session from 'koa-session'
 import chalk from 'chalk'
-import * as passport from 'koa-passport'
 import { Next, ParameterizedContext } from 'koa'
 import { IAdmin } from '../models/admin'
+import redisStore = require('koa-redis')
 
 export interface MYState {}
 export type MYRouter = ParameterizedContext<
@@ -22,6 +22,8 @@ export type MYRouter = ParameterizedContext<
     req: Request & {
       user: IAdmin
     }
+    store: redisStore.RedisSessionStore
+    getCookie(cookie: string, key: string): string
   }
 >
 
@@ -82,6 +84,7 @@ function contextUtil(ctx: MYRouter) {
   ctx.failed = failed
   ctx.redirectToLogin = redirectToLogin
   ctx.checkLogin = checkLogin
+  ctx.getCookie = getCookie
 }
 
 function checkUsername(username: string) {
@@ -103,6 +106,19 @@ const log = {
   }
 }
 
+function getCookie(cookie: string, key: string) {
+  if (cookie.startsWith('cookie:')) {
+    cookie = cookie.substr(7)
+  }
+  const arr = cookie.split(';')
+  const obj: Record<string, string> = {}
+  for (const i of arr) {
+    const items = i.trim().split('=')
+    obj[items[0]] = items[1]
+  }
+  return obj[key]
+}
+
 export {
   needAuth,
   contextUtil,
@@ -111,5 +127,6 @@ export {
   checkUsername,
   checkPassword,
   encryptPassword,
-  log
+  log,
+  getCookie
 }
