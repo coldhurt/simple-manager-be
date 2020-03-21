@@ -6,17 +6,29 @@ async function getMessages(ctx: MYRouter) {
     const { _id } = ctx.session.user
     const { friend_id = '', type = 1 } = ctx.request.body
     let messages: IMessage[] = []
+    const options = {
+      limit: 10,
+      sort: { createdAt: -1 }
+    }
     if (friend_id) {
-      let sendMessages = await message.find({
-        sender: _id,
-        receiver: friend_id,
-        type
-      })
-      let receiveMessages = await message.find({
-        sender: friend_id,
-        receiver: _id,
-        type
-      })
+      let sendMessages = await message.find(
+        {
+          sender: _id,
+          receiver: friend_id,
+          type
+        },
+        null,
+        options
+      )
+      let receiveMessages = await message.find(
+        {
+          sender: friend_id,
+          receiver: _id,
+          type
+        },
+        null,
+        options
+      )
       messages = [...sendMessages, ...receiveMessages]
       messages = messages.sort(
         (a, b) => a.get('createdAt') - b.get('createdAt')

@@ -15,7 +15,7 @@ export type MYRouter = ParameterizedContext<
     redirectToLogin(): void
     checkLogin(redirectTo: boolean): boolean
     success(obj: Object | String): void
-    failed(obj: Object | String): void
+    failed(obj: Object | String, code?: number): void
     session: Session.Session | null
     login: Function
     logout(): void
@@ -40,15 +40,17 @@ function success(obj: Object | String) {
     }
 }
 
-function failed(obj: Object | String) {
+function failed(obj: Object | String, code = 403) {
   if (typeof obj === 'string')
     this.body = {
       success: false,
-      msg: obj
+      msg: obj,
+      code
     }
   else
     this.body = {
       success: false,
+      code,
       ...obj
     }
 }
@@ -74,7 +76,7 @@ function needAuth(ctrl: Function) {
     if (ctx.session.user) {
       await ctrl(ctx)
     } else {
-      ctx.failed('need login')
+      ctx.failed('need login', 401)
     }
   }
 }
@@ -89,6 +91,10 @@ function contextUtil(ctx: MYRouter) {
 
 function checkUsername(username: string) {
   return username && /^[\da-zA-z]{5,20}$/g.test(username)
+}
+
+function checkNickName(nickname: string) {
+  return nickname && /^[\da-zA-z\u4e00-\u9fa5]{2,}$/g.test(nickname)
 }
 
 function checkPassword(pwd: string) {
@@ -119,14 +125,24 @@ function getCookie(cookie: string, key: string) {
   return obj[key]
 }
 
+function mapKeys(obj: Record<string, any>, keys: string[]) {
+  const res: Record<string, any> = {}
+  for (const key of keys) {
+    res[key] = obj[key]
+  }
+  return res
+}
+
 export {
   needAuth,
   contextUtil,
   redirectToLogin,
   checkLogin,
   checkUsername,
+  checkNickName,
   checkPassword,
   encryptPassword,
   log,
-  getCookie
+  getCookie,
+  mapKeys
 }

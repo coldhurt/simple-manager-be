@@ -3,7 +3,9 @@ import {
   checkUsername,
   checkPassword,
   encryptPassword,
-  MYRouter
+  MYRouter,
+  mapKeys,
+  checkNickName
 } from '../utils'
 import * as passport from 'koa-passport'
 import { Next } from 'koa'
@@ -13,19 +15,34 @@ interface IPwdData {
   newPwd: string
 }
 
+const adminKeys = ['_id', 'username', 'nickname', 'avatar', 'createdAt']
+
 async function register(ctx: MYRouter) {
-  const body: IAdmin = ctx.request.body
+  const body: IAdmin & { repassword: string } = ctx.request.body
+  const { username, password, repassword } = body
+  let { nickname } = body
   if (checkUsername(body.username) && checkPassword(body.password)) {
-    const data = await Admin.find({ username: body.username })
+    if (password !== repassword) {
+      ctx.failed('Password input is different twice ')
+      return
+    }
+    const data = await Admin.find({ username })
     if (data && data.length > 0) {
       ctx.failed('has same user')
     } else {
+      if (!nickname.trim()) {
+        nickname = username
+      }
+      if (!checkNickName(nickname)) {
+        ctx.failed('Nickname is invalid ')
+        return
+      }
       const newAdmin = new Admin({
-        username: body.username,
-        nickname: body.nickname || body.username,
+        username,
+        nickname,
         password: encryptPassword(body.password)
       })
-      const res = await newAdmin.save()
+      await newAdmin.save()
       ctx.success('new admin added')
     }
   } else {
@@ -33,10 +50,6 @@ async function register(ctx: MYRouter) {
   }
 }
 
-// const login = passport.authenticate('local', {
-//   successFlash: 'Welcome!',
-//   failureFlash: 'Invalid username or password.'
-// })
 const login = async function(ctx: MYRouter, next: Next) {
   return passport.authenticate('local', async function(
     err,
@@ -60,6 +73,36 @@ async function logout(ctx: MYRouter) {
   ctx.redirectToLogin()
 }
 
+type userinfo = {
+  nickname?: string
+}
+
+async function updateUserInfo(ctx: MYRouter) {
+  if (ctx.session.user) {
+    const data: userinfo = ctx.request.body
+    console.log(data)
+    if (data) {
+      const { nickname } = data
+      if (nickname && checkNickName(nickname)) {
+        const model = await Admin.findById(ctx.session.user._id)
+        if (model) {
+          model.nickname = nickname
+          const res = await model.save()
+          ctx.success({ data: model })
+        } else {
+          ctx.failed('need login', 401)
+        }
+      } else {
+        ctx.failed('invalid params')
+      }
+    } else {
+      ctx.failed('invalid params')
+    }
+  } else {
+    ctx.failed('need login', 401)
+  }
+}
+
 async function changePwd(ctx: MYRouter) {
   const pwdData: IPwdData = ctx.request.body
   const oldAdmin = await Admin.findById(ctx.session.id)
@@ -81,14 +124,17 @@ async function changePwd(ctx: MYRouter) {
 
 async function getUserInfo(ctx: MYRouter) {
   if (ctx.session.user) {
-    ctx.success({ data: ctx.session.user })
+    const model = await Admin.findById(ctx.session.user._id)
+    ctx.success({
+      data: model
+    })
   } else {
     ctx.failed('getUserInfo failed')
   }
 }
 
 async function getUserList(ctx: MYRouter) {
-  const users = await Admin.find({}, ['_id', 'username', 'createdAt'])
+  const users = await Admin.find({}, adminKeys)
   ctx.success({ data: users })
 }
 
@@ -119,6 +165,7 @@ const adminService = {
   changePwd,
   getUserInfo,
   getUserList,
-  destroy
+  destroy,
+  updateUserInfo
 }
 export default adminService

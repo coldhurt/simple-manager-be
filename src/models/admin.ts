@@ -21,8 +21,8 @@ const schema = new mongoose.Schema(
       unique: true,
       maxlength: 20
     },
-    password: { type: String, required: true, trim: true, maxlength: 30 },
-    avatar: { type: String, required: true, trim: true, maxlength: 256 },
+    password: { type: String, required: true, trim: true, maxlength: 100 },
+    avatar: { type: String, trim: true, maxlength: 256 },
     nickname: { type: String, required: true, trim: true, maxlength: 20 },
     type: { type: Number, required: true, default: 1 }
   },

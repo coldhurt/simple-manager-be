@@ -13,19 +13,24 @@ async function getFriends(ctx: MYRouter) {
     } else {
       friends = await admin.find(
         { _id: { $in: res.friends } },
-        { _id: true, nickname: true, username: true }
+        { _id: true, nickname: true, username: true, avatar: true }
       )
     }
     ctx.success({ data: friends })
   } else {
-    ctx.failed('getFriends failed, need user_id')
+    ctx.failed('get friends failed, need user_id')
   }
 }
 
 async function addFriends(ctx: MYRouter) {
-  const { friend_id } = ctx.request.body
+  let { friend_id } = ctx.request.body
   if (ctx.session.user && friend_id) {
+    friend_id = friend_id.trim()
     const { _id } = ctx.session.user
+    if (_id === friend_id) {
+      ctx.failed('you cant add yourself as a friend')
+      return
+    }
     const res = await friend.findOne({ user_id: _id })
     if (res.hasFriend(friend_id)) {
       ctx.failed('already added')
@@ -39,7 +44,7 @@ async function addFriends(ctx: MYRouter) {
       ctx.success({ data: [friend] })
     }
   } else {
-    ctx.failed('getFriends failed, need user_id')
+    ctx.failed('add friend failed, need user_id')
   }
 }
 
