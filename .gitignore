@@ -12,6 +12,7 @@
 /build
 /static
 /dist
+/src/public
 
 # misc
 .DS_Store

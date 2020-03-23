@@ -98,7 +98,7 @@ function checkNickName(nickname: string) {
 }
 
 function checkPassword(pwd: string) {
-  return pwd && /^\S{8,20}$/g.test(pwd)
+  return pwd && /^\S{8,30}$/g.test(pwd)
 }
 
 function encryptPassword(pwd: string) {

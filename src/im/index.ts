@@ -58,6 +58,14 @@ function initIM(app: TKoa) {
           targetSession.lastMessage = model
           await targetSession.save()
         }
+        const receiveSession = await imsession.findOne({
+          user_id: data.receiver,
+          friend_id: user && user._id
+        })
+        if (receiveSession) {
+          receiveSession.lastMessage = model
+          await receiveSession.save()
+        }
         for (let i = 0; i < users.length; i++) {
           if (data.receiver === users[i].user_id) {
             socket.broadcast.to(users[i].id).emit('receive', model)

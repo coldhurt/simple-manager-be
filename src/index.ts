@@ -2,13 +2,10 @@ import * as Koa from 'koa'
 import * as Helmet from 'koa-helmet'
 import * as Static from 'koa-static'
 import * as Logger from 'koa-logger'
-import * as BodyParser from 'koa-bodyparser'
+// import * as BodyParser from 'koa-bodyparser'
+import * as KoaBody from 'koa-body'
 import * as Mongoose from 'mongoose'
 import * as path from 'path'
-import * as Session from 'koa-session'
-import * as passport from 'koa-passport'
-import * as RedisStore from 'koa-redis'
-import * as redis from 'redis'
 import { config } from './config'
 import { routes } from './routes'
 import { contextUtil, log, MYRouter, MYState } from './utils'
@@ -36,12 +33,20 @@ db.once('open', function() {
 contextUtil(app.context as MYRouter)
 installSession(app)
 app.use(Helmet()).use(
-  BodyParser({
-    enableTypes: ['json'],
-    jsonLimit: '5mb',
-    strict: true,
-    onerror: function(err, ctx) {
-      ctx.throw('body parse error', 422)
+  KoaBody({
+    // includeUnparsed: true,
+    multipart: true,
+    parsedMethods: ['POST'],
+    // encoding: 'gzip',
+    formidable: {
+      uploadDir: path.join(__dirname, 'public/upload'),
+      keepExtensions: true, // 保持文件的后缀
+      maxFieldsSize: 1 * 1024 * 1024, // 文件上传大小
+      onFileBegin: (name, file) => {
+        // 文件上传前的设置
+        console.log(`onFileBegin name: ${name}`)
+        console.log('onFileBegin', file)
+      }
     }
   })
 )
@@ -54,7 +59,7 @@ app
     }
     await next()
   })
-  .use(Static(path.join(__dirname, '../build')))
+  .use(Static(path.join(__dirname, './public')))
 
 log.info(`log status: ${config.prettyLog}`)
 if (config.prettyLog) {

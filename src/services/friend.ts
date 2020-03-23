@@ -35,13 +35,20 @@ async function addFriends(ctx: MYRouter) {
     if (res.hasFriend(friend_id)) {
       ctx.failed('already added')
     } else {
-      const friend = await admin.findById(friend_id)
-      if (friend) {
+      const userFriend = await admin.findById(friend_id)
+      if (userFriend) {
         await res.update({
           friends: res.friends.concat(friend_id)
         })
+        const targetFriend = await friend.findOne({ user_id: friend_id })
+        if (targetFriend && !targetFriend.hasFriend(_id)) {
+          await targetFriend.update({
+            friends: res.friends.concat(_id)
+          })
+        }
       }
-      ctx.success({ data: [friend] })
+
+      ctx.success({ data: [userFriend] })
     }
   } else {
     ctx.failed('add friend failed, need user_id')
