@@ -14,11 +14,14 @@ npm run dev
 
 ## Module now completed
 
-- redirect all get to '/', so you can place your front end files to 'build' directory
-- crud about client model
+- redirect all get to '/' for front-end history route
 - auth
-  - Sign up
+  - Register
   - Login
   - Logout
   - Change password
   - Check if you log in
+- im
+  - friends, addFriend
+  - send message
+  - change userinfo, includes avatar, nickname

@@ -172,7 +172,7 @@ async function getUserList(ctx: MYRouter) {
     )
     ctx.success({ data: users })
   } else {
-    ctx.failed('Only support search by id')
+    ctx.failed('need param')
   }
 }
 
