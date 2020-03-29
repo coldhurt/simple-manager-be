@@ -2,6 +2,7 @@ import * as RedisStore from 'koa-redis'
 import * as redis from 'redis'
 import * as Session from 'koa-session'
 import * as Koa from 'koa'
+import { config } from '../config'
 
 function installSession(app: Koa) {
   const sessionConfig = {
@@ -18,10 +19,7 @@ function installSession(app: Koa) {
     renew: false /** (boolean) renew session when session is nearly expired, so we can always keep user logged in. (default is false)*/
   }
   // const client = redis.createClient({ host: '192.168.99.100', port: 32768 })
-  const store = RedisStore({
-    host: '192.168.99.100',
-    port: 32768
-  })
+  const store = RedisStore(config.redis)
   app.use(
     Session(
       {

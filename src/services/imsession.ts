@@ -69,4 +69,25 @@ async function delSession(ctx: MYRouter) {
   }
 }
 
-export { getSessions, addSession, delSession }
+async function readSession(ctx: MYRouter) {
+  const { session_id = '' } = ctx.request.body
+  if (ctx.session.user && session_id) {
+    const im_session = await model.findById(session_id)
+    if (im_session) {
+      // const res = await im_session.()
+      im_session.unread = 0
+      const res = await im_session.save()
+      if (res) {
+        ctx.success({ data: im_session })
+      } else {
+        ctx.failed('readSession failed')
+      }
+    } else {
+      ctx.failed('readSession failed, cant find this session')
+    }
+  } else {
+    ctx.failed('readSession failed, need session_id')
+  }
+}
+
+export { getSessions, addSession, delSession, readSession }

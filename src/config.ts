@@ -4,6 +4,7 @@ export interface IConfig {
   encryptKey: string
   sessionKeys: Array<string>
   mongodbUrl: string
+  redis: Object
 }
 
 const config: IConfig = {
@@ -11,7 +12,11 @@ const config: IConfig = {
   port: process.env.NODE_PORT || 4000,
   prettyLog: process.env.NODE_ENV == 'development',
   encryptKey: 'gnkglsaio12',
-  sessionKeys: ['14790jfkal']
+  sessionKeys: ['14790jfkal'],
+  redis: {
+    host: '192.168.99.100',
+    port: 6379
+  }
 }
 
 export { config }

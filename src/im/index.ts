@@ -3,6 +3,7 @@ import { TKoa } from '..'
 import message, { IMessage } from '../models/message'
 import { IAdmin } from '../models/admin'
 import imsession from '../models/imsession'
+import { MessageType } from './types'
 
 type TSocket = {
   id: string
@@ -40,39 +41,61 @@ function initIM(app: TKoa) {
       username: user.username
     })
     socket.on('send', async (data: IMessage) => {
-      if (data && data.receiver && data.message) {
-        const options = {
-          sender: user && user._id,
-          message: data.message,
-          receiver: data.receiver,
-          type: data.type
-        }
-        console.log('接受消息', options)
-        const model = new message(options)
-        await model.save()
-        const targetSession = await imsession.findOne({
-          user_id: user && user._id,
-          friend_id: data.receiver
-        })
-        if (targetSession) {
-          targetSession.lastMessage = model
-          await targetSession.save()
-        }
-        const receiveSession = await imsession.findOne({
-          user_id: data.receiver,
-          friend_id: user && user._id
-        })
-        if (receiveSession) {
-          receiveSession.lastMessage = model
-          await receiveSession.save()
-        }
-        for (let i = 0; i < users.length; i++) {
-          if (data.receiver === users[i].user_id) {
-            socket.broadcast.to(users[i].id).emit('receive', model)
-            break
+      const { session_id } = data
+
+      if (session_id) {
+        const session = await imsession.findById(session_id)
+        console.log('发送消息', data)
+        if (session) {
+          const model = new message({
+            session_id,
+            send: true,
+            message: data.message
+          })
+          await model.save()
+
+          socket.emit('receive', {
+            type: MessageType.MESSAGE_RECEIVE,
+            session_id,
+            data: model
+          })
+
+          const { friend_id } = session
+
+          let friend_session = await imsession.findOne({
+            user_id: friend_id,
+            friend_id: user._id
+          })
+          if (!friend_session) {
+            friend_session = new imsession({
+              user_id: friend_id,
+              friend_id: user._id
+            })
+            await friend_session.save()
+          }
+          if (friend_session) {
+            friend_session.unread += 1
+            const new_message = new message({
+              session_id: friend_session._id,
+              send: false,
+              message: data.message
+            })
+            await new_message.save()
+            friend_session.lastMessage = new_message
+            await friend_session.save()
+
+            for (let i = 0; i < users.length; i++) {
+              if (friend_id === users[i].user_id) {
+                socket.broadcast.to(users[i].id).emit('receive', {
+                  type: MessageType.MESSAGE_RECEIVE,
+                  session_id: friend_session._id,
+                  data: new_message
+                })
+                break
+              }
+            }
           }
         }
-        socket.emit('receive', model)
       }
     })
 
@@ -83,6 +106,10 @@ function initIM(app: TKoa) {
           break
         }
       }
+    })
+
+    socket.on('fetch', res => {
+      console.log(res)
     })
   })
   return server
