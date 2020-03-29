@@ -53,6 +53,8 @@ function initIM(app: TKoa) {
             message: data.message
           })
           await model.save()
+          session.lastMessage = model
+          await session.save()
 
           socket.emit('receive', {
             type: MessageType.MESSAGE_RECEIVE,
@@ -110,6 +112,14 @@ function initIM(app: TKoa) {
 
     socket.on('fetch', res => {
       console.log(res)
+    })
+
+    socket.on('readSession', async res => {
+      if (res.session_id) {
+        const session = await imsession.findById(res.session_id)
+        session.unread = 0
+        await session.save()
+      }
     })
   })
   return server

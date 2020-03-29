@@ -1,5 +1,6 @@
 import { MYRouter } from '../utils'
 import message, { IMessage } from '../models/message'
+import imsession from '../models/imsession'
 
 async function getMessages(ctx: MYRouter) {
   if (ctx.session.user) {
@@ -44,6 +45,11 @@ async function getMessages(ctx: MYRouter) {
       messages = messages.sort(
         (a, b) => a.get('createdAt') - b.get('createdAt')
       )
+      const session = await imsession.findById(session_id)
+      if (session) {
+        session.unread = 0
+        await session.save()
+      }
     }
     ctx.success({ data: messages })
   } else {
