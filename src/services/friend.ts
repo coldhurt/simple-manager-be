@@ -38,17 +38,17 @@ async function addFriends(ctx: MYRouter) {
       const userFriend = await admin.findById(friend_id)
       if (userFriend) {
         await res.update({
-          friends: res.friends.concat(friend_id)
+          friends: res.friends.concat(friend_id),
         })
         const targetFriend = await friend.findOne({ user_id: friend_id })
         if (targetFriend && !targetFriend.hasFriend(_id)) {
           await targetFriend.update({
-            friends: res.friends.concat(_id)
+            friends: res.friends.concat(_id),
           })
         }
       }
 
-      ctx.success({ data: [userFriend] })
+      ctx.success({ data: userFriend })
     }
   } else {
     ctx.failed('add friend failed, need user_id')
@@ -62,7 +62,7 @@ async function delFriends(ctx: MYRouter) {
     const res = await friend.findOne({ user_id: _id })
     if (res.hasFriend(friend_id)) {
       await res.update({
-        friends: res.friends.filter(id => id != friend_id)
+        friends: res.friends.filter((id) => id != friend_id),
       })
     }
     ctx.success({ msg: 'delete successfully' })

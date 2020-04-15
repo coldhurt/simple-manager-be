@@ -1,4 +1,5 @@
 export interface IConfig {
+  host: string
   port: number | string
   prettyLog: boolean
   encryptKey: string
@@ -8,15 +9,16 @@ export interface IConfig {
 }
 
 const config: IConfig = {
+  host: '0.0.0.0',
   mongodbUrl: 'mongodb://localhost:27017/myproject',
   port: process.env.NODE_PORT || 4000,
-  prettyLog: process.env.NODE_ENV == 'development',
+  prettyLog: process.env.NODE_ENV === 'development',
   encryptKey: 'gnkglsaio12',
   sessionKeys: ['14790jfkal'],
   redis: {
     host: '192.168.99.100',
-    port: 6379
-  }
+    port: 6379,
+  },
 }
 
 export { config }

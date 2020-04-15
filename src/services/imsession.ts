@@ -6,7 +6,7 @@ async function getSessions(ctx: MYRouter) {
   if (ctx.session.user) {
     const { _id } = ctx.session.user
     const im_sessions = await model.find({
-      user_id: _id
+      user_id: _id,
     })
     ctx.success({ data: im_sessions })
   } else {
@@ -26,7 +26,7 @@ async function addSession(ctx: MYRouter) {
     const options = {
       user_id: _id,
       friend_id,
-      type
+      type,
     }
     const isExist = await model.findOne(options)
     if (!isExist) {
@@ -47,13 +47,10 @@ async function addSession(ctx: MYRouter) {
 
 // 获取IM会话列表
 async function delSession(ctx: MYRouter) {
-  const { friend_id = '' } = ctx.request.body
-  if (ctx.session.user && friend_id) {
+  const { session_id = '' } = ctx.request.body
+  if (ctx.session.user && session_id) {
     const { _id } = ctx.session.user
-    const im_session = await model.findOne({
-      user_id: _id,
-      friend_id
-    })
+    const im_session = await model.findById(session_id)
     if (im_session) {
       const res = await im_session.remove()
       if (res) {

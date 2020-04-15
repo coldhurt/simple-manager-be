@@ -21,7 +21,7 @@ function dealWithDir(files: string[], parentPath = BASE_API_DIR) {
       paths = paths.concat(dealWithDir(subFiles, abs))
     } else {
       const obj = require(abs)
-      let routePath = abs.replace(/\\/g, '/').replace('.ts', '')
+      let routePath = abs.replace(/\\/g, '/').replace(/\.(ts|js)/, '')
       routePath = routePath.substr(routePath.indexOf('/api'))
       obj.path = routePath
       for (const method of methods) {

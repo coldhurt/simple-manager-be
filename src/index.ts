@@ -12,6 +12,7 @@ import { contextUtil, log, MYRouter, MYState } from './utils'
 import { installSession } from './middleware/session'
 import { installPassport } from './middleware/auth'
 import { initIM } from './im'
+import chalk from 'chalk'
 
 export type TKoa = Koa<MYState, MYRouter>
 const app = new Koa<MYState, MYRouter>()
@@ -20,12 +21,12 @@ app.keys = config.sessionKeys
 
 Mongoose.connect(config.mongodbUrl, {
   useNewUrlParser: true,
-  useUnifiedTopology: true
+  useUnifiedTopology: true,
 })
 
 const db = Mongoose.connection
 db.on('error', console.error.bind(console, 'connection error:'))
-db.once('open', function() {
+db.once('open', function () {
   // we're connected!
   log.info('mongoose connected')
 })
@@ -41,21 +42,22 @@ app.use(Helmet()).use(
     formidable: {
       uploadDir: path.join(__dirname, 'public/upload'),
       keepExtensions: true, // 保持文件的后缀
-      maxFieldsSize: 1 * 1024 * 1024, // 文件上传大小
+      maxFieldsSize: 2 * 1024 * 1024, // 文件上传大小
       onFileBegin: (name, file) => {
         // 文件上传前的设置
         console.log(`onFileBegin name: ${name}`)
         console.log('onFileBegin', file)
-      }
-    }
+      },
+    },
   })
 )
 installPassport(app)
 app
   .use(async (ctx, next) => {
     // redirect all gets to front end
-    if (ctx.request.method === 'GET' && ctx.request.path.indexOf('.') === -1) {
-      ctx.request.path = '/'
+    if (ctx.request.method === 'GET') {
+      const path = ctx.request.path
+      if (!/\.[a-zA-Z0-9_]+$/.test(path)) ctx.request.path = '/'
     }
     await next()
   })
@@ -67,6 +69,8 @@ if (config.prettyLog) {
 }
 app.use(routes)
 const server = initIM(app)
-server.listen(config.port)
-
-log.info(`Server running on port ${config.port}`)
+server.listen(config.port, config.host, () =>
+  console.info(
+    chalk.green(`Server running on http://${config.host}:${config.port}`)
+  )
+)

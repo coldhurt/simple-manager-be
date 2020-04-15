@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "cross-env NODE_ENV=development nodemon -L src -e ts,tsx --exec ts-node ./src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "build-all": "rm -rf dist && tsc && cp -r src/public dist/public && cd ../simple-manager-fe && npm run build",
+    "start": "node ./dist/index.js"
   },
   "keywords": [],
   "author": "",
