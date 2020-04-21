@@ -2,31 +2,26 @@ import friend from '../models/friend'
 import { MYRouter } from '../utils'
 import admin, { IAdmin } from '../models/admin'
 
-async function getFriends(ctx: MYRouter) {
-  if (ctx.session.user) {
-    const { _id } = ctx.session.user
-    let res = await friend.findOne({ user_id: _id })
-    let friends: IAdmin[] = []
-    if (!res) {
-      const model = new friend({ user_id: _id, friends: [] })
-      await model.save()
-    } else {
-      friends = await admin.find(
-        { _id: { $in: res.friends } },
-        { _id: true, nickname: true, username: true, avatar: true }
-      )
-    }
-    ctx.success({ data: friends })
+async function getFriends(_id: string) {
+  let res = await friend.findOne({ user_id: _id })
+  let friends: IAdmin[] = []
+  if (!res) {
+    const model = new friend({ user_id: _id, friends: [] })
+    await model.save()
   } else {
-    ctx.failed('get friends failed, need user_id')
+    friends = await admin.find(
+      { _id: { $in: res.friends } },
+      { _id: true, nickname: true, username: true, avatar: true }
+    )
   }
+  return friends
 }
 
 async function addFriends(ctx: MYRouter) {
   let { friend_id } = ctx.request.body
-  if (ctx.session.user && friend_id) {
+  if (ctx.isAuthenticated() && friend_id) {
     friend_id = friend_id.trim()
-    const { _id } = ctx.session.user
+    const { _id } = ctx.session.passport.user
     if (_id === friend_id) {
       ctx.failed('you cant add yourself as a friend')
       return
@@ -57,9 +52,9 @@ async function addFriends(ctx: MYRouter) {
 
 async function delFriends(ctx: MYRouter) {
   const { friend_id } = ctx.request.body
-  if (ctx.session.user && friend_id) {
-    const { _id } = ctx.session.user
-    const res = await friend.findOne({ user_id: _id })
+  if (ctx.isAuthenticated() && friend_id) {
+    const { user } = ctx.session.passport
+    const res = await friend.findOne({ user_id: user._id })
     if (res.hasFriend(friend_id)) {
       await res.update({
         friends: res.friends.filter((id) => id != friend_id),

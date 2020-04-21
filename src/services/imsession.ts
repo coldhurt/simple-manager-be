@@ -1,74 +1,57 @@
 import { MYRouter } from '../utils'
 import model from '../models/imsession'
 
-// 获取IM会话列表
-async function getSessions(ctx: MYRouter) {
-  if (ctx.session.user) {
-    const { _id } = ctx.session.user
-    const im_sessions = await model.find({
-      user_id: _id,
-    })
-    ctx.success({ data: im_sessions })
-  } else {
-    ctx.failed('getSessions failed, need login')
+async function getSession(user_id: string, session_id: string) {
+  const session = await model.findById(session_id)
+  if (session && session.user_id === user_id) {
+    return session
   }
+  return null
+}
+
+// 获取IM会话列表
+async function getSessions(_id: string) {
+  const im_sessions = await model.find({
+    user_id: _id,
+  })
+  return im_sessions
 }
 
 // 添加IM会话
-async function addSession(ctx: MYRouter) {
-  const { friend_id = '', type = 1 } = ctx.request.body
-  if (ctx.session.user && friend_id) {
-    const { _id } = ctx.session.user
-    if (friend_id === _id) {
-      ctx.failed('addSession failed, you cant add yourself to session')
-      return
-    }
-    const options = {
-      user_id: _id,
-      friend_id,
-      type,
-    }
-    const isExist = await model.findOne(options)
-    if (!isExist) {
-      const new_session = new model(options)
-      const res = await new_session.save()
-      if (res) {
-        ctx.success({ data: new_session })
-      } else {
-        ctx.failed('addSession failed')
-      }
+async function addSession(_id: string, friend_id: string, type: number) {
+  const options = {
+    user_id: _id,
+    friend_id,
+    type,
+  }
+  const isExist = await model.findOne(options)
+  if (!isExist) {
+    const new_session = new model(options)
+    const res = await new_session.save()
+    if (res) {
+      return new_session
     } else {
-      ctx.failed('addSession failed, session exists')
+      throw new Error('创建会话失败')
     }
   } else {
-    ctx.failed('addSession failed, need friend_id')
+    throw new Error('会话已存在')
   }
 }
 
 // 获取IM会话列表
-async function delSession(ctx: MYRouter) {
-  const { session_id = '' } = ctx.request.body
-  if (ctx.session.user && session_id) {
-    const { _id } = ctx.session.user
+async function delSession(user_id: string, session_id: string) {
+  if (user_id && session_id) {
     const im_session = await model.findById(session_id)
-    if (im_session) {
+    if (im_session && im_session.user_id === user_id) {
       const res = await im_session.remove()
-      if (res) {
-        ctx.success({ data: im_session })
-      } else {
-        ctx.failed('delSession failed')
-      }
-    } else {
-      ctx.failed('delSession failed, cant find this session')
+      return res ? im_session : false
     }
-  } else {
-    ctx.failed('delSession failed, need friend_id')
   }
 }
 
 async function readSession(ctx: MYRouter) {
   const { session_id = '' } = ctx.request.body
-  if (ctx.session.user && session_id) {
+  if (ctx.isAuthenticated() && session_id) {
     const im_session = await model.findById(session_id)
     if (im_session) {
       // const res = await im_session.()
@@ -87,4 +70,4 @@ async function readSession(ctx: MYRouter) {
   }
 }
 
-export { getSessions, addSession, delSession, readSession }
+export { getSession, getSessions, addSession, delSession, readSession }

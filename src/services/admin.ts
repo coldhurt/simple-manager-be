@@ -5,7 +5,7 @@ import {
   encryptPassword,
   MYRouter,
   mapKeys,
-  checkNickName
+  checkNickName,
 } from '../utils'
 import * as passport from 'koa-passport'
 import { Next } from 'koa'
@@ -32,14 +32,10 @@ async function register(ctx: MYRouter) {
       ctx.failed('has same user')
       return
     }
-    // if (!checkNickName(nickname)) {
-    //   ctx.failed('Nickname is invalid ')
-    //   return
-    // }
     const newAdmin = new Admin({
       username,
       nickname,
-      password: encryptPassword(password)
+      password: encryptPassword(password),
     })
     await newAdmin.save()
     ctx.success(newAdmin)
@@ -48,8 +44,8 @@ async function register(ctx: MYRouter) {
   }
 }
 
-const login = async function(ctx: MYRouter, next: Next) {
-  return passport.authenticate('local', async function(
+const login = async function (ctx: MYRouter, next: Next) {
+  return passport.authenticate('local', async function (
     err,
     user,
     info,
@@ -58,17 +54,17 @@ const login = async function(ctx: MYRouter, next: Next) {
     if (user === false) {
       ctx.failed('username or password is not correct')
     } else {
-      ctx.session.user = user
       ctx.success('login successfully')
+      return ctx.login(user)
     }
   })(ctx, next)
 }
 
 async function logout(ctx: MYRouter) {
-  ctx.session.user = null
   ctx.logout()
-  console.log(ctx.logout)
-  ctx.redirectToLogin()
+  if (ctx.isUnauthenticated()) {
+    ctx.redirectToLogin()
+  }
 }
 
 type userinfo = {
@@ -76,13 +72,14 @@ type userinfo = {
 }
 
 async function updateUserInfo(ctx: MYRouter) {
-  if (ctx.session.user) {
+  const { user } = ctx.session.passport
+  if (user) {
     const data: userinfo = ctx.request.body
     console.log(data)
     if (data) {
       const { nickname } = data
       if (nickname && checkNickName(nickname)) {
-        const model = await Admin.findById(ctx.session.user._id)
+        const model = await Admin.findById(user._id)
         if (model) {
           model.nickname = nickname
           const res = await model.save()
@@ -102,7 +99,8 @@ async function updateUserInfo(ctx: MYRouter) {
 }
 
 async function setAvatar(ctx: MYRouter) {
-  if (ctx.session.user) {
+  if (ctx.isAuthenticated()) {
+    const { user } = ctx.session.passport
     const files = ctx.request.files
     const keys = Object.keys(files)
     if (keys.length > 0) {
@@ -110,9 +108,9 @@ async function setAvatar(ctx: MYRouter) {
       const avatar = files[keys[0]]
       if (avatar) {
         const basename = path.basename(avatar.path)
-        if (basename.endsWith('.jpg') || basename.endsWith('.png')) {
-          const model = await Admin.findById(ctx.session.user._id, {
-            avatar: true
+        if (/\.(jpg|png)$/.test(basename)) {
+          const model = await Admin.findById(user._id, {
+            avatar: true,
           })
           if (model) {
             model.avatar = `/upload/${basename}`
@@ -129,30 +127,12 @@ async function setAvatar(ctx: MYRouter) {
   }
 }
 
-async function changePwd(ctx: MYRouter) {
-  const pwdData: IPwdData = ctx.request.body
-  const oldAdmin = await Admin.findById(ctx.session.id)
-  if (oldAdmin) {
-    if (encryptPassword(pwdData.oldPwd) === oldAdmin.password) {
-      if (checkPassword(pwdData.newPwd)) {
-        oldAdmin.password = encryptPassword(pwdData.newPwd)
-        const newData = await oldAdmin.save()
-        if (newData) ctx.success('password is changed')
-        else ctx.failed('change password failed')
-      } else {
-        ctx.failed('password is not correct')
-      }
-    }
-  } else {
-    ctx.failed('admin not found')
-  }
-}
-
 async function getUserInfo(ctx: MYRouter) {
-  if (ctx.session.user) {
-    const model = await Admin.findById(ctx.session.user._id)
+  if (ctx.isAuthenticated()) {
+    const { user } = ctx.session.passport
+    const model = await Admin.findById(user._id)
     ctx.success({
-      data: model
+      data: model,
     })
   } else {
     ctx.failed('getUserInfo failed')
@@ -165,8 +145,8 @@ async function getUserList(ctx: MYRouter) {
     const users = await Admin.find(
       {
         nickname: {
-          $regex: nickname
-        }
+          $regex: nickname,
+        },
       },
       adminKeys
     )
@@ -188,7 +168,7 @@ async function destroy(ctx: MYRouter) {
       ctx.success({ data: deleteAdmin })
     } else {
       ctx.failed({
-        msg: 'Admin not found'
+        msg: 'Admin not found',
       })
     }
   } else {
@@ -200,11 +180,10 @@ const adminService = {
   login,
   register,
   logout,
-  changePwd,
   getUserInfo,
   getUserList,
   destroy,
   updateUserInfo,
-  setAvatar
+  setAvatar,
 }
 export default adminService

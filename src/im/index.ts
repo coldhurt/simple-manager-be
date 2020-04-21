@@ -3,43 +3,62 @@ import { TKoa } from '..'
 import message, { IMessage } from '../models/message'
 import { IAdmin } from '../models/admin'
 import imsession from '../models/imsession'
-import { MessageType } from './types'
+import { MessageType, FetchData } from './types'
+import friend from '../models/friend'
+import { getFriends } from '../services/friend'
+import { delSession, addSession, getSessions } from '../services/imsession'
+import { getMessages } from '../services/message'
 
 type TSocket = {
   id: string
   user_id: string
 }
 
+function needLogin(socket: SocketIO.Socket) {
+  console.error('need login')
+  socket.emit('error', {
+    type: MessageType.ERROR_NEED_LOGIN,
+  })
+  socket.disconnect()
+}
+
 function initIM(app: TKoa) {
   const server = require('http').Server(app.callback())
   const io = socketio(server)
-  const users: TSocket[] = []
-  io.on('connection', async socket => {
+  const users: Record<string, TSocket> = {}
+  io.on('connection', async (socket) => {
     const cookie = socket.request.headers.cookie
+    if (!cookie) {
+      return needLogin(socket)
+    }
     const sessKey = app.context.getCookie(cookie, 'koa:sess')
     if (!sessKey) {
-      socket.disconnect()
-      return
+      return needLogin(socket)
     }
     console.log('sesskey ', sessKey)
     const data = await app.context.store.get(sessKey, 86400000, {
-      rolling: false
+      rolling: false,
     })
-    if (!data.user) {
+    if (!data.passport.user) {
       socket.error('need login')
       socket.disconnect()
       return
     }
-    users.push({
+    // store all users
+    const socketID = socket.id
+    const user = data.passport.user as IAdmin
+    users[socketID] = {
       id: socket.id,
-      user_id: data.user._id
-    })
-    const user = data.user as IAdmin
+      user_id: user._id,
+    }
+
     console.log('socketio connected 用户信息', {
       _id: user._id,
       nickname: user.nickname,
-      username: user.username
+      username: user.username,
     })
+
+    // 发送消息
     socket.on('send', async (data: IMessage) => {
       const { session_id } = data
 
@@ -50,7 +69,7 @@ function initIM(app: TKoa) {
           const model = new message({
             session_id,
             send: true,
-            message: data.message
+            message: data.message,
           })
           await model.save()
           session.lastMessage = model
@@ -59,19 +78,19 @@ function initIM(app: TKoa) {
           socket.emit('receive', {
             type: MessageType.MESSAGE_RECEIVE,
             session_id,
-            data: model
+            data: model,
           })
 
           const { friend_id } = session
 
           let friend_session = await imsession.findOne({
             user_id: friend_id,
-            friend_id: user._id
+            friend_id: user._id,
           })
           if (!friend_session) {
             friend_session = new imsession({
               user_id: friend_id,
-              friend_id: user._id
+              friend_id: user._id,
             })
             await friend_session.save()
           }
@@ -80,18 +99,18 @@ function initIM(app: TKoa) {
             const new_message = new message({
               session_id: friend_session._id,
               send: false,
-              message: data.message
+              message: data.message,
             })
             await new_message.save()
             friend_session.lastMessage = new_message
             await friend_session.save()
-
-            for (let i = 0; i < users.length; i++) {
-              if (friend_id === users[i].user_id) {
-                socket.broadcast.to(users[i].id).emit('receive', {
+            const usersValues = Object.values(users)
+            for (const user of usersValues) {
+              if (friend_id === user.user_id) {
+                socket.broadcast.to(user.id).emit('receive', {
                   type: MessageType.MESSAGE_RECEIVE,
                   session_id: friend_session._id,
-                  data: new_message
+                  data: new_message,
                 })
                 break
               }
@@ -102,23 +121,71 @@ function initIM(app: TKoa) {
     })
 
     socket.on('disconnect', () => {
-      for (let i = 0; i < users.length; i++) {
-        if (socket.id === users[i].id) {
-          users.splice(i, 1)
-          break
-        }
+      if (users[socketID]) {
+        delete users[socketID]
       }
     })
 
-    socket.on('fetch', res => {
-      console.log(res)
-    })
-
-    socket.on('readSession', async res => {
-      if (res.session_id) {
-        const session = await imsession.findById(res.session_id)
-        session.unread = 0
-        await session.save()
+    socket.on('fetch', async (query: FetchData) => {
+      console.log('socket fetch', query)
+      const userID = user._id
+      switch (query.type) {
+        case MessageType.MESSAGE_LIST: {
+          console.log('message list', query)
+          const messages = await getMessages(userID, query.session_id)
+          socket.emit('receive', {
+            type: query.type,
+            session_id: query.session_id,
+            data: messages,
+          })
+          break
+        }
+        case MessageType.FRIEND_LIST: {
+          const list = await getFriends(userID)
+          socket.emit('receive', {
+            type: query.type,
+            data: list,
+          })
+          break
+        }
+        case MessageType.SESSION_LIST: {
+          try {
+            const res = await getSessions(userID)
+            socket.emit('receive', {
+              type: query.type,
+              data: res,
+            })
+          } catch (e) {
+            socket.emit('receive', {
+              type: query.type,
+              error: e.message,
+            })
+          }
+          break
+        }
+        case MessageType.SESSION_ADD: {
+          try {
+            const res = await addSession(userID, query.friend_id, 1)
+            socket.emit('receive', {
+              type: query.type,
+              data: res,
+            })
+          } catch (e) {
+            socket.emit('receive', {
+              type: query.type,
+              error: e.message,
+            })
+          }
+          break
+        }
+        case MessageType.SESSION_DELETE: {
+          const res = await delSession(userID, query.session_id)
+          socket.emit('receive', {
+            type: query.type,
+            session_id: res && res._id,
+          })
+          break
+        }
       }
     })
   })

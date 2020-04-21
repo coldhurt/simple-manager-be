@@ -44,7 +44,6 @@ app.use(Helmet()).use(
       keepExtensions: true, // 保持文件的后缀
       maxFieldsSize: 2 * 1024 * 1024, // 文件上传大小
       onFileBegin: (name, file) => {
-        // 文件上传前的设置
         console.log(`onFileBegin name: ${name}`)
         console.log('onFileBegin', file)
       },
@@ -60,6 +59,14 @@ app
       if (!/\.[a-zA-Z0-9_]+$/.test(path)) ctx.request.path = '/'
     }
     await next()
+  })
+  .use(async (ctx, next) => {
+    await next()
+    const types = ctx.accept.type()
+    if (types.toString().indexOf('image/') !== -1) {
+      console.log(types)
+      ctx.response.headers['cache-control'] = 'max-age=36500000'
+    }
   })
   .use(Static(path.join(__dirname, './public')))
 

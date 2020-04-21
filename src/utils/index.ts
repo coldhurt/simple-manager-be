@@ -2,7 +2,7 @@ import * as crypto from 'crypto'
 import { config } from '../config'
 import * as Session from 'koa-session'
 import chalk from 'chalk'
-import { Next, ParameterizedContext } from 'koa'
+import { Next, ParameterizedContext, Context } from 'koa'
 import { IAdmin } from '../models/admin'
 import redisStore = require('koa-redis')
 
@@ -24,19 +24,19 @@ export type MYRouter = ParameterizedContext<
     }
     store: redisStore.RedisSessionStore
     getCookie(cookie: string, key: string): string
-  }
+  } & Context
 >
 
 function success(obj: Object | String) {
   if (typeof obj === 'string')
     this.body = {
       success: true,
-      msg: obj
+      msg: obj,
     }
   else
     this.body = {
       success: true,
-      ...obj
+      ...obj,
     }
 }
 
@@ -45,13 +45,13 @@ function failed(obj: Object | String, code = 403) {
     this.body = {
       success: false,
       msg: obj,
-      code
+      code,
     }
   else
     this.body = {
       success: false,
       code,
-      ...obj
+      ...obj,
     }
 }
 
@@ -72,8 +72,9 @@ function checkLogin(redirectTo: boolean) {
 
 // All interfaces that need to be logged in should be wrapped by this function
 function needAuth(ctrl: Function) {
-  return async function(ctx: MYRouter, next: Next) {
-    if (ctx.session.user) {
+  return async function (ctx: MYRouter, next: Next) {
+    // console.log(ctx.session)
+    if (ctx.isAuthenticated()) {
       await ctrl(ctx)
     } else {
       ctx.failed('need login', 401)
@@ -107,9 +108,9 @@ function encryptPassword(pwd: string) {
 }
 
 const log = {
-  info: function(msg: string) {
+  info: function (msg: string) {
     console.log.call(this, chalk.green(Array.prototype.join.call(this, msg)))
-  }
+  },
 }
 
 function getCookie(cookie: string, key: string) {
@@ -144,5 +145,5 @@ export {
   encryptPassword,
   log,
   getCookie,
-  mapKeys
+  mapKeys,
 }
