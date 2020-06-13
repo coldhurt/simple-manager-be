@@ -22,16 +22,18 @@ app.keys = config.sessionKeys
 Mongoose.connect(config.mongodbUrl, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
+  reconnectInterval: 10000,
 })
 
 const db = Mongoose.connection
-db.on('error', console.error.bind(console, 'connection error:'))
+db.on('error', console.error.bind(console, 'Mongodb 连接出错:'))
 db.once('open', function () {
   // we're connected!
-  log.info('mongoose connected')
+  log.info('Mongodb 已连接')
 })
 
 contextUtil(app.context as MYRouter)
+// redis store
 installSession(app)
 app.use(Helmet()).use(
   KoaBody({

@@ -2,6 +2,11 @@ import friend from '../models/friend'
 import { MYRouter } from '../utils'
 import admin, { IAdmin } from '../models/admin'
 
+async function getFriendIds(_id: string) {
+  let res = await friend.findOne({ user_id: _id })
+  return res.friends || []
+}
+
 async function getFriends(_id: string) {
   let res = await friend.findOne({ user_id: _id })
   let friends: IAdmin[] = []
@@ -66,4 +71,4 @@ async function delFriends(ctx: MYRouter) {
   }
 }
 
-export { getFriends, addFriends, delFriends }
+export { getFriends, addFriends, delFriends, getFriendIds }

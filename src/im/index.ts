@@ -4,8 +4,7 @@ import message, { IMessage } from '../models/message'
 import { IAdmin } from '../models/admin'
 import imsession from '../models/imsession'
 import { MessageType, FetchData } from './types'
-import friend from '../models/friend'
-import { getFriends } from '../services/friend'
+import { getFriends, getFriendIds } from '../services/friend'
 import { delSession, addSession, getSessions } from '../services/imsession'
 import { getMessages } from '../services/message'
 
@@ -16,16 +15,77 @@ type TSocket = {
 
 function needLogin(socket: SocketIO.Socket) {
   console.error('need login')
-  socket.emit('error', {
+  socket.emit('err', {
     type: MessageType.ERROR_NEED_LOGIN,
   })
-  socket.disconnect()
+  // socket.disconnect()
 }
 
 function initIM(app: TKoa) {
   const server = require('http').Server(app.callback())
   const io = socketio(server)
   const users: Record<string, TSocket> = {}
+
+  async function findFriendIdBySessionId(
+    session_id: string,
+    userID: string,
+    socket: SocketIO.Socket
+  ) {
+    const session = await imsession.findById(session_id)
+    if (session) {
+      const friends = await getFriendIds(session.friend_id)
+      if (!friends.includes(userID)) {
+        socket.error('你不是对方的好友')
+        return
+      }
+      // const model = new message({
+      //   session_id,
+      //   send: true,
+      //   message: data.message,
+      // })
+      // await model.save()
+      // session.lastMessage = model
+      // await session.save()
+
+      // socket.emit('receive', {
+      //   type: MessageType.MESSAGE_RECEIVE,
+      //   session_id,
+      //   data: model,
+      // })
+
+      const { friend_id } = session
+
+      let friend_session = await imsession.findOne({
+        user_id: friend_id,
+        friend_id: userID,
+      })
+      if (!friend_session) {
+        friend_session = new imsession({
+          user_id: friend_id,
+          friend_id: userID,
+        })
+        await friend_session.save()
+      }
+      if (friend_session) {
+        friend_session.unread += 1
+        // const new_message = new message({
+        //   session_id: friend_session._id,
+        //   send: false,
+        //   message: data.message,
+        // })
+        // await new_message.save()
+        // friend_session.lastMessage = new_message
+        // await friend_session.save()
+        const usersValues = Object.values(users)
+        for (const user of usersValues) {
+          if (friend_id === user.user_id) {
+            return [user.id, friend_session._id]
+          }
+        }
+      }
+    }
+  }
+
   io.on('connection', async (socket) => {
     const cookie = socket.request.headers.cookie
     if (!cookie) {
@@ -40,9 +100,7 @@ function initIM(app: TKoa) {
       rolling: false,
     })
     if (!data.passport.user) {
-      socket.error('need login')
-      socket.disconnect()
-      return
+      return needLogin(socket)
     }
     // store all users
     const socketID = socket.id
@@ -51,6 +109,7 @@ function initIM(app: TKoa) {
       id: socket.id,
       user_id: user._id,
     }
+    const userID = user._id
 
     console.log('socketio connected 用户信息', {
       _id: user._id,
@@ -66,6 +125,11 @@ function initIM(app: TKoa) {
         const session = await imsession.findById(session_id)
         console.log('发送消息', data)
         if (session) {
+          const friends = await getFriendIds(session.friend_id)
+          if (!friends.includes(userID)) {
+            socket.error('你不是对方的好友')
+            return
+          }
           const model = new message({
             session_id,
             send: true,
@@ -184,6 +248,65 @@ function initIM(app: TKoa) {
             type: query.type,
             session_id: res && res._id,
           })
+          break
+        }
+        case MessageType.VIDEO_OFFER: {
+          const res = await findFriendIdBySessionId(
+            query.session_id,
+            userID,
+            socket
+          )
+          if (res) {
+            socket.broadcast.to(res[0]).emit('receive', {
+              type: query.type,
+              session_id: res[1],
+              data: query.data,
+            })
+          }
+          break
+        }
+        case MessageType.VIDEO_ANSWER: {
+          const res = await findFriendIdBySessionId(
+            query.session_id,
+            userID,
+            socket
+          )
+          if (res) {
+            socket.broadcast.to(res[0]).emit('receive', {
+              type: query.type,
+              session_id: res[1],
+              data: query.data,
+            })
+          }
+          break
+        }
+        case MessageType.VIDEO_ICE_CANDIDATE: {
+          const res = await findFriendIdBySessionId(
+            query.session_id,
+            userID,
+            socket
+          )
+          if (res) {
+            socket.broadcast.to(res[0]).emit('receive', {
+              type: query.type,
+              session_id: res[1],
+              data: query.data,
+            })
+          }
+          break
+        }
+        case MessageType.VIDEO_LEAVE: {
+          const res = await findFriendIdBySessionId(
+            query.session_id,
+            userID,
+            socket
+          )
+          if (res) {
+            socket.broadcast.to(res[0]).emit('receive', {
+              type: query.type,
+              session_id: res[1],
+            })
+          }
           break
         }
       }

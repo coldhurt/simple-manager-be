@@ -11,6 +11,10 @@ export enum MessageType {
   MESSAGE_LIST = 3002,
   USER_INFO = 4001,
   ERROR_NEED_LOGIN = 5001,
+  VIDEO_ICE_CANDIDATE = 6001,
+  VIDEO_OFFER = 6002,
+  VIDEO_ANSWER = 6003,
+  VIDEO_LEAVE = 6004,
 }
 
 type SessionList = {
@@ -36,9 +40,36 @@ type MessageList = {
   session_id: string
 }
 
+type VideoOffer = {
+  type: typeof MessageType.VIDEO_OFFER
+  data: RTCSessionDescriptionInit
+  session_id: string
+}
+
+type VideoAnswer = {
+  type: typeof MessageType.VIDEO_ANSWER
+  data: RTCSessionDescriptionInit
+  session_id: string
+}
+
+type VideoCandidate = {
+  type: typeof MessageType.VIDEO_ICE_CANDIDATE
+  data: RTCIceCandidateInit
+  session_id: string
+}
+
+type VideoLeave = {
+  type: typeof MessageType.VIDEO_LEAVE
+  session_id: string
+}
+
 export type FetchData =
   | SessionList
   | SessionAdd
   | SessionDelete
   | FriendList
   | MessageList
+  | VideoOffer
+  | VideoAnswer
+  | VideoCandidate
+  | VideoLeave
